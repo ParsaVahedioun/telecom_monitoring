@@ -1,0 +1,535 @@
+<!DOCTYPE html>
+<html lang="fa" >
+<head>
+  <meta charset="UTF-8">
+  <title>داشبورد مصرف اینترنت</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <!-- Bootstrap RTL -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.rtl.min.css" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <!-- فونت و استایل -->
+  <style>
+    body {
+      background-color: #121212;
+      color: #fff;
+      font-family: "Vazirmatn", sans-serif;
+    }
+
+    h2 {
+      color: #00d1b2;
+    }
+
+    .form-select {
+      background-color: #1e1e1e;
+      color: #fff;
+      border: 1px solid #333;
+    }
+
+    canvas {
+      background-color: #1a1a1a;
+      padding: 10px;
+      border-radius: 10px;
+      box-shadow: 0 0 12px rgba(0,255,255,0.1);
+      max-height: 450px;
+    }
+
+    #collectBtn {
+      background-color: #00d1b2;
+      border: none;
+    }
+
+    #collectStatus {
+      margin-top: 10px;
+      font-size: 0.9rem;
+      color: #ffc107;
+    }
+
+    .chart-legend {
+      font-size: 0.8rem;
+    }
+      .stats-card {
+    border-radius: 1rem;
+    transition: transform 0.3s ease;
+  }
+
+  .stats-card:hover {
+    transform: translateY(-5px);
+  }
+
+  .stats-title {
+    font-weight: bold;
+    font-size: 1.1rem;
+    color: #495057;
+  }
+
+  .stats-value {
+    font-size: 1.4rem;
+    color: #0d6efd;
+    font-weight: 600;
+  }
+
+  .section-header {
+    font-size: 1.5rem;
+    font-weight: 700;
+    margin-bottom: 1rem;
+    color: #333;
+    text-align: center;
+  }
+  .card {
+    background-color: #1e1e1e;
+    color: #ffffff;
+    border-radius: 15px;
+    box-shadow: 0 4px 8px rgba(0, 255, 255, 0.05), 0 6px 20px rgba(0, 255, 255, 0.05);
+    transition: 0.3s;
+    padding: 20px;
+   
+  }
+
+  .card:hover {
+    background-color: #292929;
+    box-shadow: 0 4px 20px rgba(0, 255, 255, 0.1);
+  }
+
+  .stats-title {
+    color: #00ffff;
+    font-size: 1.2rem;
+    font-weight: bold;
+  }
+
+  .stats-value {
+    font-size: 1.5rem;
+    color: #ffffff;
+  }
+
+  .row {
+    margin-top: 40px;
+  }
+  .icon-stat {
+    font-size: 22px;
+    margin-bottom: 8px;
+    color: #00ffe7;
+  }
+  .stats-value {
+    font-size: 1.5rem;
+    color: #ffffff;
+    font-weight: bold;
+    transition: all 0.4s ease;
+  }
+    #statusBadge {
+    background: linear-gradient(135deg, #00b894, #0984e3);
+    color: #fff;
+    font-weight: 500;
+    font-size: 0.95rem;
+    border: none;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+  }
+
+  /* استایل جدید برای سِلکت بازه زمانی */
+  .form-select#range {
+    background-color: #1f1f1f;
+    color: #e0e0e0;
+    border: 1px solid #333;
+    border-radius: 8px;
+    padding: 0.4rem 0.75rem;
+    min-width: 120px;
+    box-shadow: inset 0 2px 4px rgba(0,0,0,0.5);
+    transition: border-color 0.3s ease, box-shadow 0.3s ease;
+  }
+
+  .form-select#range:focus {
+    border-color: #00d1b2;
+    outline: none;
+    box-shadow: 0 0 6px rgba(0, 209, 178, 0.6);
+    background-color: #292929;
+    color: #fff;
+  }
+
+  /* آیکون فلش داخل select */
+  .form-select#range {
+    background-image: url("data:image/svg+xml;charset=UTF-8,<svg fill='%23e0e0e0' height='24' viewBox='0 0 24 24' width='24' xmlns='http://www.w3.org/2000/svg'><path d='M7 10l5 5 5-5z'/></svg>");
+    background-repeat: no-repeat;
+    background-position: right 0.75rem center;
+    background-size: 1rem;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+    padding-right: 2.5rem;
+  }
+
+  </style>
+</head>
+
+<body>
+  <div class="container py-3">
+    <h2 class="text-center mb-4">داشبورد لحظه‌ای مصرف اینترنت</h2>
+    <div class="text-center mb-4">
+      <span id="statusBadge" class="badge px-3 py-2 rounded-pill">در حال بررسی اتصال...</span>
+    </div>
+    <div id="errorLog" class="text-center text-danger small" style="min-height:1.5em;"></div>
+    
+    <div class="container py-4">
+      <div class="row gy-4">
+    <!-- ستون گراف و نسبت RX/TX -->
+      <div class="col-md-5">
+      <!-- نسبت دریافت به ارسال -->
+      <div class="my-3 text-center">
+        <h5 class="mb-3">نسبت دریافت به ارسال</h5>
+        <canvas id="rxTxRatio" style="max-width: 100%;"></canvas>
+      </div>
+      <!-- سرعت لحظه‌ای -->
+      <div class="row text-center mt-4 gx-2 gy-3">
+        <div class="col-6">
+          <div class="bg-gradient-to-r from-gray-900 to-gray-800 rounded-3 shadow-lg p-3 d-flex flex-column align-items-center">
+            <span class="fs-6 text-white">🔻 دریافت</span>
+            <span id="liveRx" class="fs-3 fw-bold text-info">--</span>
+            
+          </div>
+        </div>
+        <div class="col-6">
+          <div class="bg-gradient-to-r from-gray-900 to-gray-800 rounded-3 shadow-lg p-3 d-flex flex-column align-items-center">
+            <span class="fs-6 text-white">🔺 ارسال</span>
+            <span id="liveTx" class="fs-3 fw-bold text-warning">--</span>
+            
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ستون کارت‌های آمار RX و TX -->
+    <div class="col-md-6">
+      <div class="row gy-1">
+        <!-- کارت‌های RX -->
+        <div class="col-md-6">
+          <div class="card stats-card shadow-sm p-3 text-center">
+            <div class="icon-stat mb-2">📈</div>
+            <div class="stats-title">حداکثر دریافت (RX)</div>
+            <div class="stats-value" id="maxRx">...</div>
+          </div>
+        </div>
+        <div class="col-md-6">
+          <div class="card stats-card shadow-sm p-3 text-center">
+            <div class="icon-stat mb-2">📈</div>
+            <div class="stats-title">حداکثر ارسال (TX)</div>
+            <div class="stats-value" id="maxTx">...</div>
+          </div>
+        </div>
+        <div class="col-md-6">
+          <div class="card stats-card shadow-sm p-3 text-center">
+            <div class="icon-stat mb-2">📊</div>
+            <div class="stats-title">میانگین دریافت (RX)</div>
+            <div class="stats-value" id="avgRx">...</div>
+          </div>
+        </div>
+        <!-- کارت‌های TX -->
+        
+        <div class="col-md-6">
+          <div class="card stats-card shadow-sm p-3 text-center">
+            <div class="icon-stat mb-2">📉</div>
+            <div class="stats-title">حداقل ارسال (TX)</div>
+            <div class="stats-value" id="minTx">...</div>
+          </div>
+        </div>
+        <div class="col-md-6">
+          <div class="card stats-card shadow-sm p-3 text-center">
+            <div class="icon-stat mb-2">📉</div>
+            <div class="stats-title">حداقل دریافت (RX)</div>
+            <div class="stats-value" id="minRx">...</div>
+          </div>
+        </div>
+        <div class="col-md-6">
+          <div class="card stats-card shadow-sm p-3 text-center">
+            <div class="icon-stat mb-2">📊</div>
+            <div class="stats-title">میانگین ارسال (TX)</div>
+            <div class="stats-value" id="avgTx">...</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+    <div class="d-flex  mb-3" dir="rtl">
+      <select class="form-select w-auto" id="range" onchange="fetchLatestTraffic()">
+        <option value="now">لحظه‌ای</option>
+        <option value="1h">۱ ساعت</option>
+        <option value="1d">۱ روز</option>
+        <option value="1w">۱ هفته</option>
+        <option value="1m">۱ ماه</option>
+      </select>
+    </div>
+    <div class="text-center" id="collectStatus"></div>
+
+    <canvas id="trafficChart" height="120"></canvas>
+  </div>
+  
+  
+</div>
+
+  <!-- اسکریپت چارت -->
+  <script>
+    const ctx = document.getElementById('trafficChart').getContext('2d');
+    let trafficChart = new Chart(ctx, {
+  type: 'line',
+  data: {
+    labels: [],  
+    datasets: [
+      {
+        label: '⬇ دریافت (RX)',
+        data: [],  // rxData
+        borderColor: '#00ff99',
+        backgroundColor: 'rgba(0, 255, 153, 0.1)',
+        tension: 0.3,
+        fill: true,
+        pointRadius: 2,
+        pointHoverRadius: 5,
+      },
+      {
+        label: '⬆ ارسال (TX)',
+        data: [],  // txData
+        borderColor: '#ff4d4d',
+        backgroundColor: 'rgba(255, 77, 77, 0.1)',
+        tension: 0.3,
+        fill: true,
+        pointRadius: 2,
+        pointHoverRadius: 5,
+      },
+      {
+        label: 'میانگین (AVG)',
+        data: [],  // avgData
+        borderColor: '#ba55d3',               // بنفش
+        backgroundColor: 'rgba(186, 85, 211, 0.1)',
+        tension: 0.3,
+        fill: true,
+        pointRadius: 2,
+        pointHoverRadius: 5,
+      }
+    ]
+  },
+  options: {
+    animation: false,
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: {
+        labels: {
+          color: '#ccc',
+          boxWidth: 12,
+          font: { size: 12 }
+        }
+      },
+      tooltip: {
+        mode: 'index',
+        intersect: false,
+        backgroundColor: '#333',
+        titleColor: '#fff',
+        bodyColor: '#ddd'
+      }
+    },
+    scales: {
+      x: {
+        ticks: { color: '#aaa' },
+        title: {
+          display: true,
+          text: 'زمان',
+          color: '#ccc'
+        }
+      },
+      y: {
+        beginAtZero: true,
+        ticks: {
+          color: '#aaa',
+          callback: val => formatBytes(val)
+        },
+        title: {
+          display: true,
+          text: 'میزان ترافیک',
+          color: '#ccc'
+        }
+      }
+    }
+  }
+});
+
+
+    function fetchStats() {
+     fetch('admin/api/traffic-stats')
+      .then(response => response.json())
+      .then(data => {
+      // RX
+        document.getElementById('maxRx').textContent = formatBytes(data.rx.max);
+        document.getElementById('minRx').textContent = formatBytes(data.rx.min);
+        document.getElementById('avgRx').textContent = formatBytes(data.rx.avg);
+
+      // TX
+        document.getElementById('maxTx').textContent = formatBytes(data.tx.max);
+        document.getElementById('minTx').textContent = formatBytes(data.tx.min);
+        document.getElementById('avgTx').textContent = formatBytes(data.tx.avg);
+      })
+      .catch(error => {
+        console.error('خطا در دریافت آمار مصرف:', error);
+      });
+    }
+
+    function formatBytes(bytes) {
+      const sizes = ['B', 'KB', 'MB', 'GB'];
+      if (bytes === 0) return '0 B';
+      const i = parseInt(Math.floor(Math.log(bytes) / Math.log(1024)));
+      return (bytes / Math.pow(1024, i)).toFixed(1) + ' ' + sizes[i];
+    }
+
+   async function checkConnection() {
+    const badge = document.getElementById("statusBadge");
+    const log   = document.getElementById("errorLog");
+    try {
+    // ۱. وضعیت collect_job
+      const statusRes = await fetch("/api/collect-status");
+      const status    = await statusRes.json();
+
+      if (status.last_error) {
+      // اگر خطا یا skip داریم
+        badge.textContent = "⚠️ مشکل در جمع‌آوری";
+        badge.className = "badge bg-warning text-dark px-3 py-2 rounded-pill";
+        log.textContent = status.last_error;
+        return;  // زدن ادامه مانع بررسی live-speed می‌شود
+      }
+
+    // ۲. اگر اجرای collect_job موفق بوده، اتصال سالم فرض می‌شود
+      badge.textContent = "✅ اتصال و جمع‌آوری سالم";
+      badge.className = "badge bg-success px-3 py-2 rounded-pill";
+      log.textContent = "";
+
+      } catch (err) {
+    // هر نوع خطای شبکه
+      badge.textContent = "❌ خطای اتصال";
+      badge.className = "badge bg-danger px-3 py-2 rounded-pill";
+      log.textContent = `⛔ ${err.message}`;
+      }
+  }
+
+// هر ۵ ثانیه یکبار بررسی کن
+
+    const ratioChart = new Chart(document.getElementById("rxTxRatio").getContext("2d"), {
+      type: 'doughnut',
+      data: {
+        labels: ['RX', 'TX'],
+        datasets: [{
+          label: 'نسبت مصرف',
+          data: [1, 1], // مقدار اولیه
+          backgroundColor: ['#00ff99', '#ff4d4d'],
+          borderWidth: 1
+        }]
+      },
+      options: {
+        plugins: {
+          legend: {
+            labels: {
+              color: '#ccc'
+            }
+          }
+        }
+      }
+    });
+
+    function updateRatioChart(rx, tx) {
+      ratioChart.data.datasets[0].data = [rx, tx];
+      ratioChart.update();
+    }
+
+    async function fetchLatestTraffic() {
+      const range = document.getElementById("range").value;
+      const res = await fetch(`/admin/traffic?range=${range}`);
+      const data = await res.json();
+
+      const labels = [];
+      const rxData = [];
+      const txData = [];
+      const avgData = [];
+    const trafficMap = {};
+
+    data.forEach(entry => {
+      entry.timestamps.forEach((ts, idx) => {
+        if (!trafficMap[ts]) trafficMap[ts] = { rx: 0, tx: 0 };
+        trafficMap[ts].rx += entry.rx[idx];
+        trafficMap[ts].tx += entry.tx[idx];
+      });
+    });
+
+    const sortedTimestamps = Object.keys(trafficMap).sort();
+    sortedTimestamps.forEach(ts => {
+      const date = new Date(ts);
+
+    // تاریخ فارسی
+      const dateStr = date.toLocaleDateString('fa-IR', {
+        timeZone: 'Asia/Tehran',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit'
+      });
+
+    // زمان فارسی با ثانیه
+      const timeStr = date.toLocaleTimeString('fa-IR', {
+        timeZone: 'Asia/Tehran',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: false
+      });
+
+    // برچسب چندخطی: تاریخ در خط اول، زمان در خط دوم
+      labels.push(`${dateStr}\n${timeStr}`);
+
+      const rx = trafficMap[ts].rx;
+      const tx = trafficMap[ts].tx;
+      rxData.push(rx);
+      txData.push(tx);
+      avgData.push(Math.round((rx + tx) / 2));
+    });
+
+    trafficChart.data.labels = labels;
+    trafficChart.data.datasets[0].data = rxData;
+    trafficChart.data.datasets[1].data = txData;
+    trafficChart.data.datasets[2].data = avgData;
+    trafficChart.update();
+  }
+
+// تنظیمات چارت: اضافه کردن گزینه برای پردازش برچسب‌ها به صورت چندخطی
+  trafficChart.options.scales.x = {
+    ticks: {
+      color: '#aaa',
+      callback: function(val, index) {
+      // getLabelForValue از نسخه Chart.js جدید
+      const label = this.getLabelForValue(index);
+      return label.split('\n');
+      }
+    },
+    title: {
+      display: true,
+      text: 'تاریخ و زمان',
+      color: '#ccc'
+    }
+  };
+
+    function updateLiveSpeed() {
+    fetch("/admin/api/live-speed")
+      .then(res => res.json())
+      .then(data => {
+        document.getElementById("liveRx").textContent = formatBytes(data.rx) + "/s";
+        document.getElementById("liveTx").textContent = formatBytes(data.tx) + "/s";
+      })
+      .catch(() => {
+        document.getElementById("liveRx").textContent = "--";
+        document.getElementById("liveTx").textContent = "--";
+      });
+    }
+    updateLiveSpeed();
+    fetchLatestTraffic();
+    // updateRatioChart(data.rx.avg, data.tx.avg);
+    fetchStats();
+    setInterval(fetchLatestTraffic, 10000); // Refresh every 10s
+    checkConnection();
+    // دکمه جمع آوری دستی
+  </script>
+</body>
+</html>
