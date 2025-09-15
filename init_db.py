@@ -1,8 +1,11 @@
-# init_db.py
+# sync_db.py
+from database import engine, Base
+import models
 
-from database import Base, engine
-from models import User, TrafficLog  # اگر TrafficLog هم داری
+print("⏳ پاک‌سازی جداول قبلی …")
+Base.metadata.drop_all(bind=engine)
 
-print("⏳ ساخت جداول دیتابیس...")
+print("⏳ ایجاد جداول جدید …")
 Base.metadata.create_all(bind=engine)
-print("✅ ساخت جداول انجام شد.")
+
+print("✅ عملیات همگام‌سازی پایان یافت.")

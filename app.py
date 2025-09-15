@@ -10,7 +10,8 @@ def job():
 if __name__ == "__main__":
     init_db()
     scheduler = BlockingScheduler()
-    scheduler.add_job(job, 'interval', minutes=0.1)
+    # scheduler.add_job(job, 'interval', minutes=0.1)
+    scheduler.add_job(job, 'interval', seconds=120, max_instances=10, coalesce=False)
 
     print("🚀 مانیتورینگ SNMP هر ۵ دقیقه شروع شد...")
     try:

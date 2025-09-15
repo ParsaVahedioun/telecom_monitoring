@@ -84,7 +84,7 @@
     box-shadow: 0 4px 8px rgba(0, 255, 255, 0.05), 0 6px 20px rgba(0, 255, 255, 0.05);
     transition: 0.3s;
     padding: 20px;
-   
+
   }
 
   .card:hover {
@@ -168,7 +168,24 @@
       <span id="statusBadge" class="badge px-3 py-2 rounded-pill">در حال بررسی اتصال...</span>
     </div>
     <div id="errorLog" class="text-center text-danger small" style="min-height:1.5em;"></div>
-    
+
+
+    <!-- ۱. محل قرارگیری نمودارها -->
+    <div class="container py-4">
+      <div class="row gy-5">
+    <!-- آمار Min/Avg/Max -->
+        <div class="col-md-6">
+          <h5 class="text-center text-white mb-3">آمار مصرف RX & TX</h5>
+          <canvas id="statsBarChart" style="max-height: 300px;"></canvas>
+        </div>
+        <!-- سرعت لحظه‌ای -->
+        <div class="col-md-6">
+          <h5 class="text-center text-white mb-3">سرعت لحظه‌ای RX & TX</h5>
+          <canvas id="liveSpeedBarChart" style="max-height: 300px;"></canvas>
+        </div>
+      </div>
+    </div>
+
     <div class="container py-4">
       <div class="row gy-4">
     <!-- ستون گراف و نسبت RX/TX -->
@@ -184,14 +201,14 @@
           <div class="bg-gradient-to-r from-gray-900 to-gray-800 rounded-3 shadow-lg p-3 d-flex flex-column align-items-center">
             <span class="fs-6 text-white">🔻 دریافت</span>
             <span id="liveRx" class="fs-3 fw-bold text-info">--</span>
-            
+
           </div>
         </div>
         <div class="col-6">
           <div class="bg-gradient-to-r from-gray-900 to-gray-800 rounded-3 shadow-lg p-3 d-flex flex-column align-items-center">
             <span class="fs-6 text-white">🔺 ارسال</span>
             <span id="liveTx" class="fs-3 fw-bold text-warning">--</span>
-            
+
           </div>
         </div>
       </div>
@@ -223,7 +240,7 @@
           </div>
         </div>
         <!-- کارت‌های TX -->
-        
+
         <div class="col-md-6">
           <div class="card stats-card shadow-sm p-3 text-center">
             <div class="icon-stat mb-2">📉</div>
@@ -263,8 +280,8 @@
 
     <canvas id="trafficChart" height="120"></canvas>
   </div>
-  
-  
+
+
 </div>
 
   <!-- اسکریپت چارت -->
@@ -273,7 +290,7 @@
     let trafficChart = new Chart(ctx, {
   type: 'line',
   data: {
-    labels: [],  
+    labels: [],
     datasets: [
       {
         label: '⬇ دریافت (RX)',
@@ -531,5 +548,118 @@
     checkConnection();
     // دکمه جمع آوری دستی
   </script>
+  <script>
+  const COLORS = {
+    rx: 'rgb(67, 11, 234)',
+    tx: 'rgb(244, 236, 8)',
+    min: '#888',
+    avg: '#ba55d3',
+    max: '#fff'
+  };
+
+  async function renderStatsChart() {
+    const res = await fetch('/admin/api/traffic-stats');
+    const { rx, tx } = await res.json();
+
+    const labels = ['حداقل', 'میانگین', 'حداکثر'];
+    const rxData  = [rx.min, rx.avg, rx.max];
+    const txData  = [tx.min, tx.avg, tx.max];
+
+    new Chart(
+      document.getElementById('statsBarChart').getContext('2d'),
+      {
+        type: 'bar',
+        data: {
+          labels,
+          datasets: [
+            {
+              label: 'RX',
+              data: rxData,
+              backgroundColor: COLORS.rx,
+            },
+            {
+              label: 'TX',
+              data: txData,
+              backgroundColor: COLORS.tx,
+            }
+          ]
+        },
+        options: {
+          indexAxis: 'x',
+          responsive: true,
+          plugins: {
+            legend: { labels: { color: '#ccc' } }
+          },
+          scales: {
+            x: {
+              ticks: { color: '#aaa' },
+              grid: { display: false }
+            },
+            y: {
+              beginAtZero: true,
+              ticks: {
+                color: '#aaa',
+                callback: v => formatBytes(v)
+              }
+            }
+          }
+        }
+      }
+    );
+  }
+
+
+  async function renderLiveSpeedChart() {
+    const res = await fetch('/admin/api/live-speed');
+    const { rx, tx } = await res.json();
+
+    new Chart(
+      document.getElementById('liveSpeedBarChart').getContext('2d'),
+      {
+        type: 'bar',
+        data: {
+          labels: ['سرعت RX', 'سرعت TX'],
+          datasets: [{
+            label: 'Kb/s',
+            data: [rx, tx],
+            backgroundColor: [COLORS.rx, COLORS.tx]
+          }]
+        },
+        options: {
+          responsive: true,
+          plugins: {
+            legend: { display: false }
+          },
+          scales: {
+            x: {
+              ticks: { color: '#aaa' },
+              grid: { display: false }
+            },
+            y: {
+              beginAtZero: true,
+              ticks: {
+                color: '#aaa',
+                callback: v => formatBytes(v) + '/s'
+              }
+            }
+          }
+        }
+      }
+    );
+  }
+
+  function formatBytes(bytes) {
+    if (bytes === 0) return '0 B';
+    const k = 1024;
+    const sizes = ['B','KB','MB','GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return (bytes / Math.pow(k, i)).toFixed(1) + ' ' + sizes[i];
+  }
+
+  renderStatsChart();
+  renderLiveSpeedChart();
+  // اگر بخواهید نمودار سرعت را لحظه‌ای با فاصله اجرا کنید:
+  setInterval(renderLiveSpeedChart,1000);
+</script>
 </body>
 </html>

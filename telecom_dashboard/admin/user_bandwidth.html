@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>جزئیات مصرف کاربر</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.rtl.min.css" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <style>
+    body{background:#121212;color:#eaeaea;font-family:Vazirmatn,system-ui,Segoe UI,Arial,sans-serif}
+    .page{max-width:1300px;margin:auto;padding:20px}
+    .card{background:#1e1e1e;border:1px solid #2a2a2a;border-radius:16px}
+    .card-body{padding:16px}
+    .kpi{display:flex;flex-direction:column;gap:6px;align-items:center}
+    .kpi .label{color:#9aa3af}
+    .kpi .val{font-weight:800;font-size:1.4rem}
+    .chip{background:linear-gradient(135deg,#00b894,#0984e3);color:#fff;border-radius:999px;padding:.35rem .8rem;display:inline-block}
+    canvas{background:#0b1222;border-radius:12px;padding:10px}
+    .toolbar .form-select,.toolbar .btn{border-radius:12px}
+  </style>
+</head>
+<body>
+  <div class="page">
+    <div class="d-flex flex-wrap align-items-center gap-3 mb-3">
+      <div class="me-auto">
+        <h4 class="m-0">جزئیات مصرف کاربر: <span id="uName">—</span> <small class="text-info">(#<span id="uId">—</span>)</small></h4>
+        <div class="mt-1"><span id="statusBadge" class="chip">در حال بررسی اتصال…</span></div>
+      </div>
+      <div class="toolbar d-flex gap-2 align-items-end">
+        <div>
+          <label class="form-label mb-1">بازهٔ زمانی</label>
+          <select id="hours" class="form-select form-select-sm">
+            <option value="24" selected>24 ساعت</option>
+            <option value="12">12 ساعت</option>
+            <option value="6">6 ساعت</option>
+            <option value="1">1 ساعت</option>
+          </select>
+        </div>
+        <div>
+          <label class="form-label mb-1">پنجرهٔ تجمیع</label>
+          <select id="window" class="form-select form-select-sm">
+            <option value="300" selected>5 دقیقه</option>
+            <option value="600">10 دقیقه</option>
+            <option value="60">1 دقیقه</option>
+          </select>
+        </div>
+        <button id="reload" class="btn btn-primary btn-sm">به‌روزرسانی</button>
+      </div>
+    </div>
+
+    <!-- KPIs -->
+    <div class="row g-3 mb-3">
+      <div class="col-6 col-md-2"><div class="card"><div class="card-body kpi"><div class="label">سرعت RX</div><div id="liveRx" class="val">—</div></div></div></div>
+      <div class="col-6 col-md-2"><div class="card"><div class="card-body kpi"><div class="label">سرعت TX</div><div id="liveTx" class="val">—</div></div></div></div>
+      <div class="col-6 col-md-2"><div class="card"><div class="card-body kpi"><div class="label">میانگین RX</div><div id="avgRx" class="val">—</div></div></div></div>
+      <div class="col-6 col-md-2"><div class="card"><div class="card-body kpi"><div class="label">میانگین TX</div><div id="avgTx" class="val">—</div></div></div></div>
+      <div class="col-6 col-md-2"><div class="card"><div class="card-body kpi"><div class="label">پیک پنجره‌ای</div><div id="peakBps" class="val">—</div></div></div></div>
+      <div class="col-6 col-md-2"><div class="card"><div class="card-body kpi"><div class="label">کمینه پنجره‌ای</div><div id="minBps" class="val">—</div></div></div></div>
+    </div>
+
+    <div class="row g-4 mb-4">
+      <div class="col-lg-8">
+        <div class="card"><div class="card-body">
+          <div class="d-flex justify-content-between align-items-center mb-2"><strong>سری زمانی نرخ (bps)</strong><small class="text-secondary">RX, TX, Total</small></div>
+          <canvas id="lineChart" height="110"></canvas>
+        </div></div>
+      </div>
+      <div class="col-lg-4">
+        <div class="card mb-4"><div class="card-body">
+          <div class="mb-2"><strong>نسبت RX/TX (میانگین bps)</strong></div>
+          <canvas id="donutRatio" height="140"></canvas>
+        </div></div>
+        <div class="card"><div class="card-body">
+          <div class="mb-2"><strong>بیشترین/کمترین پنجره‌ها</strong></div>
+          <table class="table table-sm table-borderless text-light mb-0">
+            <tbody id="winTbl"></tbody>
+          </table>
+        </div></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const apiBase = location.origin;
+    function qs(k){ return new URLSearchParams(location.search).get(k) }
+    const userId = Number(qs('user_id')||'0');
+    const userName = decodeURIComponent(qs('name')||'');
+    document.getElementById('uId').textContent = userId || '—';
+    document.getElementById('uName').textContent = userName || 'نامشخص';
+
+    function fmtbps(v){
+      if(v>=1e9) return (v/1e9).toFixed(2)+' Gbps';
+      if(v>=1e6) return (v/1e6).toFixed(2)+' Mbps';
+      if(v>=1e3) return (v/1e3).toFixed(1)+' Kbps';
+      return (v||0).toFixed(0)+' bps';
+    }
+
+    let lineChart, donutRatio;
+
+    async function checkStatus(){
+      try{
+        const r = await fetch(`${apiBase}/api/collect-status`);
+        const d = await r.json();
+        const b = document.getElementById('statusBadge');
+        if(d.last_error){ b.textContent='⚠️ مشکل در جمع‌آوری'; b.style.background='linear-gradient(135deg,#f39c12,#e74c3c)'; }
+        else if(d.last_success){ b.textContent='✅ اتصال و جمع‌آوری سالم'; }
+      }catch(e){}
+    }
+
+    function buildLine(labels, rx, tx, total){
+      const ctx = document.getElementById('lineChart').getContext('2d');
+      if(lineChart) lineChart.destroy();
+      lineChart = new Chart(ctx, {
+        type:'line',
+        data:{ labels, datasets:[
+          { label:'RX bps', data: rx, tension:0.25 },
+          { label:'TX bps', data: tx, tension:0.25 },
+          { label:'Total bps', data: total, tension:0.25 }
+        ]},
+        options:{
+          responsive:true, interaction:{mode:'index', intersect:false},
+          plugins:{ legend:{ position:'bottom' } },
+          scales:{ y:{ ticks:{ callback:(v)=>fmtbps(v) } } }
+        }
+      });
+    }
+
+    function buildDonut(avgRx, avgTx){
+      const ctx = document.getElementById('donutRatio').getContext('2d');
+      if(donutRatio) donutRatio.destroy();
+      donutRatio = new Chart(ctx, { type:'doughnut', data:{ labels:['RX','TX'], datasets:[{ data:[avgRx, avgTx] }] }, options:{ plugins:{ legend:{ position:'bottom' } } } });
+    }
+
+    function fillWindows(maxW, minW){
+      const tbl = document.getElementById('winTbl');
+      tbl.innerHTML = '';
+      function addRow(k, w){ if(!w) return; const tr = document.createElement('tr'); tr.innerHTML = `<td class="text-secondary">${k}</td><td>${new Date(w.window_start).toLocaleString('fa-IR')}</td><td>${new Date(w.window_end).toLocaleString('fa-IR')}</td><td class="fw-bold">${fmtbps(w.total_bps_avg)}</td>`; tbl.appendChild(tr); }
+      addRow('بیشترین', maxW); addRow('کمترین', minW);
+    }
+
+    function avg(arr){ if(!arr.length) return 0; return arr.reduce((s,v)=> s+v, 0) / arr.length; }
+
+    async function loadUser(){
+      await checkStatus();
+      if(!userId){ alert('user_id نامعتبر است'); return; }
+      const hours = Number(document.getElementById('hours').value);
+      const window_seconds = Number(document.getElementById('window').value);
+      const until = new Date(); const since = new Date(until.getTime() - hours*3600*1000);
+      const url = `${apiBase}/api/users/${userId}/bandwidth?since=${since.toISOString()}&until=${until.toISOString()}&window_seconds=${window_seconds}`;
+      const res = await fetch(url);
+      if(!res.ok){ alert('API error'); return; }
+      const data = await res.json();
+
+      // labels + series
+      const labels = data.series.map(p=> new Date(p.t_end).toLocaleString('fa-IR'));
+      const rx = data.series.map(p=> p.rx_bps);
+      const tx = data.series.map(p=> p.tx_bps);
+      const total = data.series.map(p=> p.total_bps);
+
+      buildLine(labels, rx, tx, total);
+      fillWindows(data.max_window, data.min_window);
+
+      // KPIs
+      const liveRx = rx.at(-1) || 0; const liveTx = tx.at(-1) || 0;
+      document.getElementById('liveRx').textContent = fmtbps(liveRx);
+      document.getElementById('liveTx').textContent = fmtbps(liveTx);
+      const avgRx = avg(rx), avgTx = avg(tx);
+      document.getElementById('avgRx').textContent = fmtbps(avgRx);
+      document.getElementById('avgTx').textContent = fmtbps(avgTx);
+      document.getElementById('peakBps').textContent = data.max_window ? fmtbps(data.max_window.total_bps_avg) : '—';
+      document.getElementById('minBps').textContent = data.min_window ? fmtbps(data.min_window.total_bps_avg) : '—';
+      buildDonut(avgRx, avgTx);
+    }
+
+    document.getElementById('reload').addEventListener('click', loadUser);
+    window.addEventListener('load', loadUser);
+  </script>
+</body>
+</html>

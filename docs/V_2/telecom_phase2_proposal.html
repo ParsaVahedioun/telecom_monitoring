@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>گزارش فاز دوم پروژه مانیتورینگ پهنای‌باند و مصرف اینترنت</title>
+  <!-- Vazirmatn font (CDN) -->
+  <link href="https://cdn.jsdelivr.net/npm/vazirmatn@33.003/Vazirmatn-font-face.css" rel="stylesheet">
+  <style>
+    :root{
+      --bg:#0b0f1a; --fg:#111; --paper:#ffffff; --ink:#111; --muted:#555;
+      --primary:#0ea5e9; --accent:#14b8a6; --border:#e5e7eb;
+      --code-bg:#0f172a; --code-ink:#e2e8f0;
+    }
+    *{box-sizing:border-box}
+    html,body{padding:0;margin:0}
+    body{
+      font-family: Vazirmatn, Tahoma, "DejaVu Sans", Arial, sans-serif;
+      background:#f7f7fb; color:var(--ink); line-height:1.85;
+    }
+    .container{max-width:980px; margin:32px auto; background:var(--paper); padding:28px; border:1px solid var(--border); border-radius:16px}
+    h1,h2,h3{line-height:1.4; margin:0 0 12px 0}
+    h1{font-weight:800; font-size:1.8rem}
+    h2{font-weight:700; font-size:1.35rem; color:#0b3b66; border-right:4px solid var(--primary); padding-right:10px; margin-top:26px}
+    h3{font-weight:700; font-size:1.1rem; color:#084c61; margin-top:18px}
+    p{margin:0 0 10px 0}
+    .muted{color:var(--muted)}
+    .lead{font-size:1.05rem}
+    .kbd{background:#eef2f7; border:1px solid var(--border); border-radius:6px; padding:1px 8px; font-family:ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace}
+    .chip{display:inline-block; padding:.2rem .6rem; border-radius:999px; background:linear-gradient(135deg,#0ea5e9,#14b8a6); color:#fff; font-weight:600}
+    .toc{background:#f4faff; border:1px solid var(--border); padding:16px; border-radius:12px; margin:14px 0 18px 0}
+    .toc a{color:#0a66c2; text-decoration:none}
+    .toc li{margin:6px 0}
+    code, pre{font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace}
+    pre{background:var(--code-bg); color:var(--code-ink); padding:14px; border-radius:12px; overflow:auto; border:1px solid #0b203a}
+    .kv{display:grid; grid-template-columns: 160px 1fr; gap:8px 16px; background:#fafafa; padding:12px; border:1px solid var(--border); border-radius:12px}
+    .kv div:nth-child(odd){color:#333; font-weight:700}
+    .box{background:#fbfdff; border:1px solid var(--border); border-radius:12px; padding:14px; margin:10px 0}
+    .ok{color:#059669} .warn{color:#ca8a04} .err{color:#dc2626}
+    .pagebreak{break-after: page; page-break-after: always;}
+    @media print{
+      body{background:#fff}
+      .container{border:none; border-radius:0; padding:0; max-width:100%}
+      .pagebreak{display:block}
+      @page{ size: A4; margin: 15mm 15mm; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="kv" style="margin-bottom:16px">
+      <div>عنوان:</div><div><strong>گزارش فاز دوم پروژه مانیتورینگ پهنای‌باند و مصرف اینترنت</strong></div>
+      <div>نسخه:</div><div>1.0</div>
+      <div>تاریخ:</div><div><script>document.write(new Date().toLocaleDateString('fa-IR'))</script></div>
+      <div>تهیه‌کننده:</div><div>تیم توسعه</div>
+    </div>
+
+    <h1>خلاصهٔ اجرایی</h1>
+    <p class="lead">
+      در فاز دوم، صفحات مدیریتی و صفحهٔ جزئیات پهنای‌باند بازطراحی شد، محاسبات نرخ به‌صورت استاندارد (بر پایهٔ شمارنده‌های SNMP)
+      پیاده‌سازی و اندپوینت‌های API ارتقا یافت. همچنین بهبودهای دیتابیسی (ایندکس‌ها و فیلدهای کمکی) اعمال و خروجی‌گیری اکسل/CSV اضافه شد.
+    </p>
+
+    <div class="toc">
+      <strong>فهرست مطالب</strong>
+      <ol>
+        <li><a href="#ui">صفحات مدیریت و پهنای‌باند</a></li>
+        <li><a href="#math">فرمول‌های محاسبهٔ پهنای‌باند</a></li>
+        <li><a href="#db">ارتقای دیتابیس</a></li>
+        <li><a href="#api">اندپوینت‌ها (API)</a></li>
+        <li><a href="#fixes">بهبودها و رفع باگ‌ها</a></li>
+        <li><a href="#qa">تست و اعتبارسنجی</a></li>
+        <li><a href="#roadmap">نقشهٔ راه پیشنهادی</a></li>
+      </ol>
+    </div>
+
+    <h2 id="ui">۱) صفحات مدیریت و پهنای‌باند</h2>
+    <h3>۱.۱) داشبورد ادمین /admin</h3>
+    <div class="box">
+      <ul>
+        <li>شاخص‌ها (KPI): کل کاربران، کاربران فعال، میانگین پهنای‌باند کاربران (Avg bps)، بیشینهٔ میانگین پنجره‌ای بین کاربران.</li>
+        <li>نمودارها: رنکینگ مصرف، دونات فعال/غیرفعال، هیستوگرام Avg bps، سری زمانی مصرف کل (Bytes)، نقشهٔ حرارتی موقعیت کاربران، ثبت‌نام‌های ماهانه.</li>
+        <li>اکشن‌ها: لینک «جزئیات» هر کاربر، خروجی CSV/XLSX با پارامترهای <span class="kbd">hours</span> و <span class="kbd">window_seconds</span>.</li>
+      </ul>
+    </div>
+
+    <h3>۱.۲) صفحهٔ جزئیات پهنای‌باند /admin/user-bandwidth</h3>
+    <div class="box">
+      <ul>
+        <li>فیلترها: بازه‌های آماده (۱/۶/۱۲/۲۴ ساعت) + بازهٔ سفارشی، پنجرهٔ تجمیع ۱/۵/۱۰/۳۰ دقیقه، به‌روزرسانی خودکار.</li>
+        <li>KPIها: سرعت لحظه‌ای RX/TX، میانگین RX/TX، «پیک پنجره‌ای» و «کمینهٔ پنجره‌ای» با بازهٔ زمانی، بیشینه/کمینهٔ نقطه‌ای با زمان وقوع.</li>
+        <li>نمودارها: خطی RX/TX/Total (bps) و دونات نسبت RX/TX.</li>
+        <li>جدول خام آخرین ۲۰۰ نمونهٔ نرخ + خروجی CSV/XLSX (SheetJS).</li>
+      </ul>
+    </div>
+
+    <div class="pagebreak"></div>
+
+    <h2 id="math">۲) فرمول‌های محاسبهٔ پهنای‌باند</h2>
+    <p>پایهٔ محاسبه، اختلاف شمارنده‌های تجمیعی SNMP برای یک اینترفیس کاربر است (ifHCInOctets/ifHCOutOctets یا معادل):</p>
+<pre><code>Δt   = t[i] - t[i-1]           # ثانیه
+Δrx  = rx_bytes[i] - rx_bytes[i-1]
+Δtx  = tx_bytes[i] - tx_bytes[i-1]
+
+# اگر Δrx یا Δtx &lt; 0 ⇒ ریست/overflow کانتر ⇒ نادیده بگیر
+rx_bps    = (Δrx * 8) / Δt
+tx_bps    = (Δtx * 8) / Δt
+total_bps = rx_bps + tx_bps
+</code></pre>
+    <h3>۲.۱) تعاریف کلیدی</h3>
+    <ul>
+      <li><strong>سرعت لحظه‌ای:</strong> آخرین نقطهٔ محاسبه‌شده از سری bps (بین دو نمونهٔ اخیر).</li>
+      <li><strong>حداکثر/حداقل نقطه‌ای:</strong> بیشینه/کمینهٔ <em>total_bps</em> (برای کمینه بهتر است صفرهای نویزی حذف شوند).</li>
+      <li><strong>پنجرهٔ تجمیع:</strong> باکت‌بندی سری بر اساس <span class="kbd">window_seconds</span> و محاسبهٔ میانگین در هر باکت.</li>
+      <li><strong>پیک پنجره‌ای:</strong> پنجره‌ای که میانگین <em>total_bps</em> آن بیشترین است (با <em>window_start</em>/<em>window_end</em>).</li>
+      <li><strong>کمینهٔ پنجره‌ای:</strong> پنجره با کمترین میانگین <em>total_bps</em>.</li>
+      <li><strong>آمار کلی:</strong> avg، p95، max روی سری <em>total_bps</em>.</li>
+    </ul>
+
+    <h3>۲.۲) توصیه‌ها</h3>
+    <ul>
+      <li>Sampling یکنواخت (۳۰–۶۰ ثانیه)؛ هم‌زمان‌سازی ساعت‌ها (UTC/NTP).</li>
+      <li>استفاده از کانترهای ۶۴ بیتی (HC) برای جلوگیری از overflow.</li>
+      <li>فیلتر outlier برای Δt بسیار کوچک/بزرگ یا جهش‌های غیرعادی.</li>
+    </ul>
+
+    <h2 id="db">۳) ارتقای دیتابیس</h2>
+    <h3>۳.۱) فیلدها و ایندکس‌ها</h3>
+    <ul>
+      <li><strong>users</strong>: افزودن <span class="kbd">created_at (UTC)</span>، ایندکس <span class="kbd">is_active</span>، فیلدهای اختیاری <span class="kbd">region/lat/long</span>.</li>
+      <li><strong>traffic_logs</strong>: ایندکس ترکیبی <span class="kbd">(user_id, timestamp)</span> برای گزارش‌گیری سریع.</li>
+    </ul>
+<pre><code># Alembic (خلاصه)
+def upgrade():
+    op.add_column('users', sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.func.now()))
+    op.create_index('ix_users_is_active', 'users', ['is_active'])
+    op.create_index('ix_traffic_logs_user_time', 'traffic_logs', ['user_id','timestamp'])
+
+def downgrade():
+    op.drop_index('ix_traffic_logs_user_time', table_name='traffic_logs')
+    op.drop_index('ix_users_is_active', table_name='users')
+    op.drop_column('users', 'created_at')
+</code></pre>
+
+    <h3>۳.۲) مقیاس‌پذیری</h3>
+    <ul>
+      <li>در حجم بالا: جدول‌های پیش‌تجمیع (۱m/۵m/۱۰m) با job زمان‌بندی‌شده.</li>
+      <li>در Postgres: پارتیشن‌بندی زمانی برای <em>traffic_logs</em>.</li>
+    </ul>
+
+    <div class="pagebreak"></div>
+
+    <h2 id="api">۴) اندپوینت‌ها</h2>
+    <h3>۴.۱) وضعیت جمع‌آوری</h3>
+<pre><code>GET /api/collect-status
+{
+  "last_success": "2025-08-28T10:01:00Z",
+  "last_error": null
+}
+</code></pre>
+
+    <h3>۴.۲) کاربران</h3>
+<pre><code>GET /api/users
+[
+  {
+    "id": 8,
+    "name": "Persian Carton2",
+    "ip_address": "10.1.1.20",
+    "region": "Tehran", "lat": 35.7, "long": 51.3,
+    "plan": "Premium", "is_active": true,
+    "created_at": "2025-07-01T10:00:00Z",
+    "last_seen": "2025-08-28T10:05:00Z"
+  }
+]
+
+POST /api/users   (JSON body)
+DELETE /api/users/{id}
+</code></pre>
+
+    <h3>۴.۳) خلاصهٔ کاربران برای داشبورد</h3>
+<pre><code>GET /admin/api/users/summary?hours=24&amp;window_seconds=300
+[
+  {
+    "id": 8, "name": "Persian Carton2", "ip": "10.1.1.20", "is_active": true,
+    "rx_bytes": 123456789, "tx_bytes": 987654321,
+    "total_bps_avg": 1200000.0,
+    "peak_window": { "window_start": "...", "window_end": "...", "total_bps_avg": 5600000.0 },
+    "timeline": [
+      { "ts": "2025-08-28T09:00:00Z", "total_bytes": 1234567 }
+    ],
+    "latitude": 35.7, "longitude": 51.3, "created_at": "2025-07-01T10:00:00Z"
+  }
+]
+</code></pre>
+
+    <h3>۴.۴) خروجی فایل داشبورد</h3>
+<pre><code>GET /admin/api/users/export?hours=24&amp;window_seconds=300&amp;format=xlsx|csv
+# Content-Disposition: attachment; filename="users_summary_....xlsx"
+</code></pre>
+
+    <h3>۴.۵) گزارش دقیق پهنای‌باند کاربر</h3>
+<pre><code>GET /api/users/{user_id}/bandwidth?since=ISO&amp;until=ISO&amp;window_seconds=300&amp;top_n=3
+{
+  "user_id": 8,
+  "since": "2025-08-27T10:00:00Z",
+  "until": "2025-08-28T10:00:00Z",
+  "window_seconds": 300,
+  "series": [
+    { "t_start":"...", "t_end":"...", "rx_bps": 1200000.0, "tx_bps": 400000.0, "total_bps": 1600000.0 }
+  ],
+  "max_window": { "window_start":"...", "window_end":"...", "rx_bps_avg":..., "tx_bps_avg":..., "total_bps_avg":... },
+  "min_window": { ... },
+  "max_point":  { "t_start":"...", "t_end":"...", "rx_bps":..., "tx_bps":..., "total_bps":... },
+  "min_point":  { ... },
+  "current_rx_bps": 900000.0,
+  "current_tx_bps": 300000.0,
+  "current_total_bps": 1200000.0,
+  "stats": { "avg_bps": 800000.0, "p95_bps": 2500000.0, "max_bps": 5600000.0 },
+  "top_windows": [
+    { "window_start":"...", "window_end":"...", "total_bps_avg": ... }
+  ]
+}
+</code></pre>
+
+    <h2 id="fixes">۵) بهبودها و رفع باگ‌ها</h2>
+    <ul>
+      <li>رفع 404 صفحهٔ جزئیات با افزودن مسیر <span class="kbd">/admin/user-bandwidth</span> (و alias اختیاری).</li>
+      <li>همخوانی با Python 3.13: جایگزینی/ارتقای کلاینت SNMP (پرهیز از پکیج‌هایی که به <code>imp</code> وابسته‌اند).</li>
+      <li>فیلتر Δ منفی (overflow/reset) در محاسبات؛ حذف outlierهای زمانی.</li>
+      <li>افزودن فیلتر بازهٔ زمانی و پنجرهٔ تجمیع در UI کاربر.</li>
+      <li>افزودن خروجی CSV/XLSX (سمت کلاینت برای صفحهٔ کاربر، و سمت سرور برای خلاصهٔ داشبورد).</li>
+    </ul>
+
+    <h2 id="qa">۶) تست و اعتبارسنجی</h2>
+    <ul>
+      <li>تطبیق نرخ‌های محاسبه‌شده با دادهٔ خام SNMP و بررسی انطباق زمانی.</li>
+      <li>یکنواختی Sampling و صحت ساعت‌ها (UTC/NTP)؛ استفاده از HC counters.</li>
+      <li>اعتبارسنجی خروجی فایل‌ها در اکسل/LibreOffice.</li>
+    </ul>
+
+    <h2 id="roadmap">۷) نقشهٔ راه پیشنهادی</h2>
+    <ul>
+      <li>Pre-aggregation job (۱m/۵m/۱۰m) و جداسازی storage گرم/سرد.</li>
+      <li>Threshold/Alerting (مثلاً بیش از p95 × 1.5 به‌مدت N دقیقه).</li>
+      <li>Role-based Access، Audit log، Token-based API.</li>
+      <li>کاوش عمیق‌تر per-protocol (NetFlow/sFlow، در صورت نیاز).</li>
+    </ul>
+
+    <div class="box" style="margin-top:18px">
+      <span class="chip">پیوست A — یادداشت‌ها</span>
+      <p style="margin-top:10px">این سند برای چاپ روی A4 آماده است. برای PDF: در مرورگر <span class="kbd">Ctrl+P</span> و اندازهٔ صفحه را <span class="kbd">A4</span> انتخاب کنید.</p>
+    </div>
+
+  </div>
+</body>
+</html>
